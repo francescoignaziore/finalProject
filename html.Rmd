@@ -1,0 +1,208 @@
+---
+title: The rise of populism in Europe
+author: Francesco Ignazio Re
+output:
+  html_document:
+    theme: "flatly" 
+    toc: true
+    toc_float: true
+---
+```{r setup, include=FALSE}
+library(knitr)
+library(tidyverse)
+library(maptools)
+library(ggmap)
+# install necessary packages
+library(dplyr)
+library(doBy)
+# to make fortify possible without errors
+
+library(gpclib)
+gpclibPermit()
+library(kableExtra)
+codes <- read.csv("iso_code_europe_partial.csv", sep= ";")
+
+codes <- codes %>% rename("Populist index" = Populist.Index )
+# requires downloading and unzipping NUTS_2013_01M_SH.zip from
+# http://ec.europa.eu/eurostat/web/gisco/geodata/reference-data/administrative-units-statistical-units
+eurMap <- readShapeSpatial("NUTS_2013_01M_SH/data/NUTS_RG_01M_2013.shp")
+
+# only main adm level
+eurMap <- subset(eurMap, nchar(as.character(NUTS_ID)) == 2)
+
+# EL for Grece, UK for United Kingdom
+eurMapDf <- fortify(eurMap, region='NUTS_ID')
+
+eurData <- read.csv("Overview_Elections.csv")
+eurData <- eurData %>% rename("Populist index" = Populist.index ) %>% select(-X)
+#eurData <- rbind(eurData,codes)
+eurData <- eurData %>% mutate(`Populist index`= `Populist index` * 10)
+# merge map and data
+eurMapDataDf <- merge(eurMapDf, eurData, by.x="id", by.y="CountryCode")
+# sort, so that polygons are drawn correctly
+eurMapDataDf <- eurMapDataDf[order(eurMapDataDf$order),]
+
+# limit data to main Europe
+eurMapDataDf <- subset(eurMapDataDf, long > -15 & long < 32 & lat > 34 & lat < 75)
+
+# add text; instead of mean I do middle (not to be to biased towards detailed coastlines)
+middle = function (x) {
+  (max(x) + min(x)) / 2
+}  
+
+
+txtVal <- summaryBy(long + lat + `Populist index` ~ id, data=eurMapDataDf, FUN=middle, keep.names=T)
+
+# inverse order (to have visible borders)
+
+p <- ggplot(data=eurMapDataDf) +
+  geom_polygon(aes(x=long, y=lat, group=group, fill=`Populist index`)) +
+  geom_path(aes(x=long, y=lat, group=group), color='black', alpha=.5) +
+  geom_text(aes(x=long, y=lat, label=sprintf("%.4f", `Populist index`)), data=txtVal, col="black",cex=3,fontface =2) +
+  scale_fill_gradient2(low = "navy", mid = "white", high = "red4") +
+  coord_equal()+ theme(axis.line=element_blank(),axis.text.x=element_blank(),
+                         axis.text.y=element_blank(),axis.ticks=element_blank(),
+                         axis.title.x=element_blank(),
+                         axis.title.y=element_blank())+
+  geom_text(x =10 , y =59, label = "General trend of electoral outcome \n from 1992 to present")
+
+Elections1 <- read.csv("Elections.csv", sep = ",")
+Elections1 <- Elections1 %>% select(-X)
+
+Elections00 <- Elections1 %>%filter(Year >= 1990)%>%filter(Year < 2000) %>%
+              group_by(Country) %>% summarize(mean(Index)) %>%
+  rename("CountryCode" = Country, "Populist index"= `mean(Index)`)
+              
+Elections10 <- Elections1 %>%filter(Year >= 2000)%>%filter(Year < 2010) %>%
+  group_by(Country) %>% summarize(mean(Index))  %>%
+  rename("CountryCode" = Country, "Populist index"= `mean(Index)`)
+
+Elections15 <- Elections1 %>%filter(Year >= 2010)%>%filter(Year < 2015) %>%
+  group_by(Country) %>% summarize(mean(Index)) %>%
+  rename("CountryCode" = Country, "Populist index"= `mean(Index)`)
+
+Elections20 <-  Elections1 %>%filter(Year >= 2015)%>%filter(Year <= 2018)%>%
+  group_by(Country) %>% summarize(mean(Index)) %>%
+  rename("CountryCode" = Country, "Populist index"= `mean(Index)`)
+
+
+```
+
+
+##Introduction
+
+During the last decades, a new wave of right leaning populism has spread throughout European countries, fed by a rise in xenophobic and racist behaviors. These parties have dramatically grown in popularity during the last few years. They made a new turn in the way politics is perceived, as their way of communication and the topics of their agenda adjusted to what people want to hear: a simplistic interpretation of reality that exacerbates problems caused by apparently external causes such as mass immigration and cultural liberalization.
+
+Many analysts used to believe that this rise was an effect of the economic recession of 2008-2012. However, even as Europe’s economic recovery has gathered pace, the populist surge has continued.
+
+With that said, in this document we will try to understand first the magnitude of this phenomenon, the way inpacts the people's lives and eventually we will focus on the possible causes that generated it. 
+
+##Analysis on the electoral outcome
+
+For the purpose of this project, we will focus our attention on the countries that we believed witnessed this phenomenon the most, trying to catch any common pattern among them. In order to give a scale of the problem, we start by analyzing the results of the elections occured in the last twenty years. For each party that took part to every election, we assigned an index from -2 to +2, to indicate its political orientation. 
+
+```{r tabsets, echo=FALSE} 
+dt <- data.frame("FarLeft"=-2,`LeftWing`=-1,"Centre"=0,"RightWing"=1,"FarRight"=2)
+
+kable(dt, "html") %>%
+  kable_styling(bootstrap_options = "striped", font_size = 13,full_width = F) %>%
+   column_spec(1:5, bold = T) %>%
+  row_spec(1, bold = T, color = "white", background = "#FA725B")
+
+```
+
+In this way, we can get a general overview on where, politically speaking, every country leans. 
+
+<div style="position: align; top: 0; right: 0;">
+
+```{r , echo=FALSE,} 
+p
+
+```
+</div>
+
+On the graph above, we can observe that in the last thirty years, Germany and Uk leaned towards left-wing governments, Italy, Austria and Hungary towards right-wing governments, meanwhile France, according to the index, had a similar amount of right-wing and left-wing influences. 
+
+## Quarterly Results {.tabset .tabset-fade .tabset-pills}
+
+### 1990/2000
+```{r , echo=FALSE} 
+
+eurData <- Elections00
+
+eurData <- eurData %>% mutate(`Populist index`= `Populist index` * 10)
+# merge map and data
+eurMapDataDf <- merge(eurMapDf, eurData, by.x="id", by.y="CountryCode")
+# sort, so that polygons are drawn correctly
+eurMapDataDf <- eurMapDataDf[order(eurMapDataDf$order),]
+
+# limit data to main Europe
+eurMapDataDf <- subset(eurMapDataDf, long > -15 & long < 32 & lat > 34 & lat < 75)
+
+# add text; instead of mean I do middle (not to be to biased towards detailed coastlines)
+middle = function (x) {
+  (max(x) + min(x)) / 2
+}  
+
+
+txtVal <- summaryBy(long + lat + `Populist index` ~ id, data=eurMapDataDf, FUN=middle, keep.names=T)
+
+# inverse order (to have visible borders)
+
+p1 <- ggplot(data=eurMapDataDf) +
+  geom_polygon(aes(x=long, y=lat, group=group, fill=`Populist index`)) +
+  geom_path(aes(x=long, y=lat, group=group), color='black', alpha=.5) +
+  geom_text(aes(x=long, y=lat, label=sprintf("%.4f", `Populist index`)), data=txtVal, col="black",cex=3,fontface =2) +
+  scale_fill_gradient2(low = "navy", mid = "white", high = "red4") +
+  coord_equal()+ theme(axis.line=element_blank(),axis.text.x=element_blank(),
+                         axis.text.y=element_blank(),axis.ticks=element_blank(),
+                         axis.title.x=element_blank(),
+                         axis.title.y=element_blank())
+
+p1
+
+```
+
+
+
+
+### 2000/2010
+
+```{r,, echo=FALSE}
+
+eurData <- Elections15
+
+eurData <- eurData %>% mutate(`Populist index`= `Populist index` * 10)
+# merge map and data
+eurMapDataDf <- merge(eurMapDf, eurData, by.x="id", by.y="CountryCode")
+# sort, so that polygons are drawn correctly
+eurMapDataDf <- eurMapDataDf[order(eurMapDataDf$order),]
+
+# limit data to main Europe
+eurMapDataDf <- subset(eurMapDataDf, long > -15 & long < 32 & lat > 34 & lat < 75)
+
+# add text; instead of mean I do middle (not to be to biased towards detailed coastlines)
+middle = function (x) {
+  (max(x) + min(x)) / 2
+}  
+
+
+txtVal <- summaryBy(long + lat + `Populist index` ~ id, data=eurMapDataDf, FUN=middle, keep.names=T)
+
+# inverse order (to have visible borders)
+
+p3 <-  ggplot(data=eurMapDataDf) +
+  geom_polygon(aes(x=long, y=lat, group=group, fill=`Populist index`)) +
+  geom_path(aes(x=long, y=lat, group=group), color='black', alpha=.5) +
+  geom_text(aes(x=long, y=lat, label=sprintf("%.4f", `Populist index`)), data=txtVal, col="black",cex=3,fontface =2) +
+  scale_fill_gradient2(low = "navy", mid = "white", high = "red4") +
+  coord_equal()+ theme(axis.line=element_blank(),axis.text.x=element_blank(),
+                       axis.text.y=element_blank(),axis.ticks=element_blank(),
+                       axis.title.x=element_blank(),
+                       axis.title.y=element_blank())
+
+p3
+```
+
+
+

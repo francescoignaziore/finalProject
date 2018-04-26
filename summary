@@ -1,0 +1,32 @@
+For the first part of the project, we want to provide a general 
+understanding of the problem, showing its main characteristics 
+and in which extends it is spread.
+
+In order to do this, we've come up with a data set with all the 
+elections during the last 20 years occurred in Europe. 
+
+On Wikipedia, we found information on every party that took place
+in every elections and we gave it a weight according to whether
+it was:
+
+    left-wing populism:      -2
+    left-wing to far-left: -1.5
+    left-wing:               -1
+    centre-left:           -0.5
+    centre:                   0
+    centre-right:           0.5
+    right:                    1
+    right-wing to far-right:1.5
+    right-wing populism:      2
+    
+We created an index multuplying these weights for the number of votes
+in percentage that each party received in each elections. 
+
+With this index, we were able to build a first picture of the
+general trend of every country on a set of information that spans
+along a range of 20 years. We were then able to compare this general 
+trend with the outcome of the last elections, in order to catch any
+correlation between the general political position of the country and
+a rise in populism.
+
+    
