@@ -192,9 +192,9 @@ ui <- dashboardPage(
                      box(width = NULL,title = "Different surveys regarding the perception of immigration in Europe", plotOutput("immigration"),
                          
                          selectInput("immigr", label = h3("Select survey's topic:"), 
-                                     choices = list("Immigrants and jobs" = "C:/Users/Francesco Ignazio Re/Documents/R_depository_dir/finalProject/immigrants_analysis_1.csv",
-                                                    "Immigrants and services" = "C:/Users/Francesco Ignazio Re/Documents/R_depository_dir/finalProject/immigrants_analysis_2.csv",
-                                                    "Immigrants and crime" = "C:/Users/Francesco Ignazio Re/Documents/R_depository_dir/finalProject/immigrants_analysis_3.csv"), 
+                                     choices = list("Immigrants and jobs" = "immigrants_analysis_1.csv",
+                                                    "Immigrants and services" = "immigrants_analysis_2.csv",
+                                                    "Immigrants and crime" = "immigrants_analysis_3.csv"), 
                                      selected = "immigrants_analysis_1.csv")
                      ),
                      

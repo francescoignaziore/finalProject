@@ -1,0 +1,12 @@
+name: shiny_final
+title: shiny_final
+username:
+account: francescoignaziore
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 339269
+bundleId: 1362130
+url: https://francescoignaziore.shinyapps.io/shiny_final/
+when: 1525773048.42838
+asMultiple: FALSE
+asStatic: FALSE

@@ -24,7 +24,7 @@ gpclibPermit()
 library(kableExtra)
 
 
-Elections1 <- read.csv("C:/Users/Francesco Ignazio Re/Documents/R_depository_dir/finalProject/Elections.csv", sep = ",")
+Elections1 <- read.csv("Elections.csv", sep = ",")
 Elections1 <- Elections1 %>% select(-X)
 
 Elections00 <- Elections1 %>%filter(Year >= 1990)%>%filter(Year < 2000) %>%
@@ -57,7 +57,7 @@ middle = function (x) {
   (max(x) + min(x)) / 2
 }
 
-eurMap <- readShapeSpatial("C:/Users/Francesco Ignazio Re/Documents/R_depository_dir/finalProject/NUTS_2013_01M_SH/data/NUTS_RG_01M_2013.shp")
+eurMap <- readShapeSpatial("NUTS_2013_01M_SH/data/NUTS_RG_01M_2013.shp")
 
 # only main adm level
 eurMap <- subset(eurMap, nchar(as.character(NUTS_ID)) == 2)
@@ -185,7 +185,7 @@ partiess <- rbind(League,FN,FIDESZ,UKIP,FP)
 
 #Facebook Analysis
 
-Salvini <- read.csv2("C:/Users/Francesco Ignazio Re/Documents/R_depository_dir/finalProject/Salvini_feed.csv")
+Salvini <- read.csv2("Salvini_feed.csv")
 
 Salvini <- Salvini %>% select(-X)
 
@@ -227,7 +227,7 @@ S5$from_el <- as.numeric(S5$from_el)
 #################################### immigrations number
 
 
-immigrants_n <- read.csv("C:/Users/Francesco Ignazio Re/Documents/R_depository_dir/finalProject/immigrants_perception_numbers.csv", sep = ";")
+immigrants_n <- read.csv("immigrants_perception_numbers.csv", sep = ";")
 immigrants_n <- immigrants_n %>% select(Code,X..of.valid) %>% rename("Value"= X..of.valid)
 
 immigrants_p <- immigrants_n %>% mutate(Value = Value * 10)
@@ -253,7 +253,7 @@ f <- function(a,b){
 
 ########### SURVEY ON EUROPEAN UNION
 
-eu_survey <- read.csv("C:/Users/Francesco Ignazio Re/Documents/R_depository_dir/finalProject/europe_survey.csv", sep = ";")
+eu_survey <- read.csv("europe_survey.csv", sep = ";")
 
 eu_survey <- as.data.frame(t(eu_survey))
 countries <- rownames(eu_survey)
@@ -383,7 +383,7 @@ server <- function(input, output, session) {
     line<-c(1:length(text))
     
     
-    stop_words_it <- read.csv2("C:/Users/Francesco Ignazio Re/Documents/R_depository_dir/finalProject/stop_words_italian.csv")
+    stop_words_it <- read.csv2("stop_words_italian.csv")
     
     
     colnames(stop_words_it) <- "word"
@@ -484,14 +484,14 @@ server <- function(input, output, session) {
   
   output$immigration <- renderPlot({
     
-    if(input$immigr == "C:/Users/Francesco Ignazio Re/Documents/R_depository_dir/finalProject/immigrants_analysis_1.csv" ){
+    if(input$immigr == "immigrants_analysis_1.csv" ){
       
       init = "Take jobs aways \n 0"
       final = "Create new jobs \n 10"
       title = "Survey on the relationship between immigrants and jobs"
     }
     
-    if(input$immigr == "C:/Users/Francesco Ignazio Re/Documents/R_depository_dir/finalProject/immigrants_analysis_2.csv" ){
+    if(input$immigr == "immigrants_analysis_2.csv" ){
       
       init = "Take out more \n 0"
       final = "Put in more \n 10"
@@ -500,7 +500,7 @@ server <- function(input, output, session) {
     }
     
     
-    if(input$immigr == "C:/Users/Francesco Ignazio Re/Documents/R_depository_dir/finalProject/immigrants_analysis_3.csv" ){
+    if(input$immigr == "immigrants_analysis_3.csv" ){
       
       init = "Make it worse \n 0"
       final = "Make it better \n 10"
