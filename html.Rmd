@@ -4,15 +4,18 @@ author: Francesco Ignazio Re
 output:
   html_document:
     theme: "flatly" 
-    toc: true
-    toc_float: true
+
 ---
 ```{r setup, include=FALSE}
+library(dplyr)
+library(wordcloud)
+library(tidytext)
 library(knitr)
 library(tidyverse)
 library(maptools)
 library(ggmap)
 # install necessary packages
+library(scales)
 library(dplyr)
 library(doBy)
 # to make fortify possible without errors
@@ -20,9 +23,9 @@ library(doBy)
 library(gpclib)
 gpclibPermit()
 library(kableExtra)
-codes <- read.csv("iso_code_europe_partial.csv", sep= ";")
 
-codes <- codes %>% rename("Populist index" = Populist.Index )
+
+
 # requires downloading and unzipping NUTS_2013_01M_SH.zip from
 # http://ec.europa.eu/eurostat/web/gisco/geodata/reference-data/administrative-units-statistical-units
 eurMap <- readShapeSpatial("NUTS_2013_01M_SH/data/NUTS_RG_01M_2013.shp")
@@ -35,8 +38,8 @@ eurMapDf <- fortify(eurMap, region='NUTS_ID')
 
 eurData <- read.csv("Overview_Elections.csv")
 eurData <- eurData %>% rename("Populist index" = Populist.index ) %>% select(-X)
-#eurData <- rbind(eurData,codes)
-eurData <- eurData %>% mutate(`Populist index`= `Populist index` * 10)
+
+eurData <- eurData %>% mutate(`Populist index`= `Populist index`)
 # merge map and data
 eurMapDataDf <- merge(eurMapDf, eurData, by.x="id", by.y="CountryCode")
 # sort, so that polygons are drawn correctly
@@ -60,7 +63,7 @@ p <- ggplot(data=eurMapDataDf) +
   geom_path(aes(x=long, y=lat, group=group), color='black', alpha=.5) +
   geom_text(aes(x=long, y=lat, label=sprintf("%.4f", `Populist index`)), data=txtVal, col="black",cex=3,fontface =2) +
   scale_fill_gradient2(low = "navy", mid = "white", high = "red4") +
-  coord_equal()+ theme(axis.line=element_blank(),axis.text.x=element_blank(),
+  coord_equal()+theme_bw()+ theme(axis.line=element_blank(),axis.text.x=element_blank(),
                          axis.text.y=element_blank(),axis.ticks=element_blank(),
                          axis.title.x=element_blank(),
                          axis.title.y=element_blank())+
@@ -84,6 +87,57 @@ Elections15 <- Elections1 %>%filter(Year >= 2010)%>%filter(Year < 2015) %>%
 Elections20 <-  Elections1 %>%filter(Year >= 2015)%>%filter(Year <= 2018)%>%
   group_by(Country) %>% summarize(mean(Index)) %>%
   rename("CountryCode" = Country, "Populist index"= `mean(Index)`)
+Salvini <- read.csv2("Salvini_feed.csv")
+
+Salvini <- Salvini %>% select(-X)
+
+S <- Salvini %>% separate(created_time, into= c("date", "hour"), sep = "T")
+S1 <- S %>% separate(hour, into = c("time","plus"), sep = "[+]")
+
+S1$date <- as.Date(S1$date)
+
+
+dates <- c("2018/03/07")
+dates <-as.Date(dates)
+S1 <- as.tibble(S1)
+
+S1$message <- as.character(S1$message)
+text <- S1$message
+line<-c(1:length(text))
+
+
+stop_words_it <- read.csv2("stop_words_italian.csv")
+
+
+colnames(stop_words_it) <- "word"
+
+stop_words_it$word <- as.character(stop_words_it$word)
+
+stop_words_it <- as.tibble(stop_words_it)
+text_df <- cbind(line,text)
+
+text_df <- as.tibble(text_df)
+
+
+text_df <- text_df %>%
+  unnest_tokens(word, text)
+
+text_df <- text_df[nchar(text_df$word)>3, ]
+
+text_df <- text_df %>% anti_join(stop_words_it)
+
+text_df_1 <- gsub(" ?0\\w+ ?", "", text_df$word)
+
+text_df_1 <-  as.tibble(text_df_1)
+
+
+text_df_1 <- text_df_1 %>%  filter(value != "") %>% 
+  filter(value != "perché") %>%
+  filter(value != "sarà") 
+
+
+count <- count(text_df_1, value, sort = TRUE)
+
 
 
 ```
@@ -91,11 +145,11 @@ Elections20 <-  Elections1 %>%filter(Year >= 2015)%>%filter(Year <= 2018)%>%
 
 ##Introduction
 
-During the last decades, a new wave of right leaning populism has spread throughout European countries, fed by a rise in xenophobic and racist behaviors. These parties have dramatically grown in popularity during the last few years. They made a new turn in the way politics is perceived, as their way of communication and the topics of their agenda adjusted to what people want to hear: a simplistic interpretation of reality that exacerbates problems caused by apparently external causes such as mass immigration and cultural liberalization.
+During the last decades, a new wave of right leaning populism has spread throughout European countries, fed by a rise in xenophobic and racist behaviors. These parties have dramatically grown in popularity during the last few years. They made a new turn in the way politics is perceived, as their way of communication and the topics of their agenda adjusted to what people wanted to hear: a simplistic interpretation of reality that exacerbates problems caused by apparently external causes such as mass immigration and cultural liberalization.
 
 Many analysts used to believe that this rise was an effect of the economic recession of 2008-2012. However, even as Europe’s economic recovery has gathered pace, the populist surge has continued.
 
-With that said, in this document we will try to understand first the magnitude of this phenomenon, the way inpacts the people's lives and eventually we will focus on the possible causes that generated it. 
+With that said, in this document we will try to understand first the magnitude of this phenomenon, the way it inpacts people's lives and eventually we will focus on the possible causes that generated it. 
 
 ##Analysis on the electoral outcome
 
@@ -121,16 +175,16 @@ p
 ```
 </div>
 
-On the graph above, we can observe that in the last thirty years, Germany and Uk leaned towards left-wing governments, Italy, Austria and Hungary towards right-wing governments, meanwhile France, according to the index, had a similar amount of right-wing and left-wing influences. 
+On the graph above, we can observe that in the last thirty years, Germany and the Uk leaned towards left-wing governments, Italy, Austria and Hungary towards right-wing governments, meanwhile France, according to the index, had a similar amount of right-wing and left-wing influences. 
 
-## Quarterly Results {.tabset .tabset-fade .tabset-pills}
+## Oucomes of the last decades{.tabset  .tabset-pills}
 
 ### 1990/2000
 ```{r , echo=FALSE} 
 
 eurData <- Elections00
 
-eurData <- eurData %>% mutate(`Populist index`= `Populist index` * 10)
+eurData <- eurData %>% mutate(`Populist index`= `Populist index`)
 # merge map and data
 eurMapDataDf <- merge(eurMapDf, eurData, by.x="id", by.y="CountryCode")
 # sort, so that polygons are drawn correctly
@@ -154,11 +208,13 @@ p1 <- ggplot(data=eurMapDataDf) +
   geom_path(aes(x=long, y=lat, group=group), color='black', alpha=.5) +
   geom_text(aes(x=long, y=lat, label=sprintf("%.4f", `Populist index`)), data=txtVal, col="black",cex=3,fontface =2) +
   scale_fill_gradient2(low = "navy", mid = "white", high = "red4") +
-  coord_equal()+ theme(axis.line=element_blank(),axis.text.x=element_blank(),
-                         axis.text.y=element_blank(),axis.ticks=element_blank(),
-                         axis.title.x=element_blank(),
-                         axis.title.y=element_blank())
-
+  coord_equal()+ theme_bw()+ theme(axis.line=element_blank(),axis.text.x=element_blank(),
+                       axis.text.y=element_blank(),axis.ticks=element_blank(),
+                       axis.title.x=element_blank(),
+                       axis.title.y=element_blank(),panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+            plot.background = element_blank(),
+        panel.border = element_blank())
 p1
 
 ```
@@ -166,13 +222,13 @@ p1
 
 
 
+
 ### 2000/2010
 
 ```{r,, echo=FALSE}
+eurData <- Elections10
 
-eurData <- Elections15
-
-eurData <- eurData %>% mutate(`Populist index`= `Populist index` * 10)
+eurData <- eurData %>% mutate(`Populist index`= `Populist index`)
 # merge map and data
 eurMapDataDf <- merge(eurMapDf, eurData, by.x="id", by.y="CountryCode")
 # sort, so that polygons are drawn correctly
@@ -191,18 +247,444 @@ txtVal <- summaryBy(long + lat + `Populist index` ~ id, data=eurMapDataDf, FUN=m
 
 # inverse order (to have visible borders)
 
-p3 <-  ggplot(data=eurMapDataDf) +
+p2 <-   ggplot(data=eurMapDataDf) +
   geom_polygon(aes(x=long, y=lat, group=group, fill=`Populist index`)) +
   geom_path(aes(x=long, y=lat, group=group), color='black', alpha=.5) +
   geom_text(aes(x=long, y=lat, label=sprintf("%.4f", `Populist index`)), data=txtVal, col="black",cex=3,fontface =2) +
   scale_fill_gradient2(low = "navy", mid = "white", high = "red4") +
-  coord_equal()+ theme(axis.line=element_blank(),axis.text.x=element_blank(),
+  coord_equal()+ theme_bw()+ theme(axis.line=element_blank(),axis.text.x=element_blank(),
                        axis.text.y=element_blank(),axis.ticks=element_blank(),
                        axis.title.x=element_blank(),
-                       axis.title.y=element_blank())
+                       axis.title.y=element_blank(),panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+            plot.background = element_blank(),
+        panel.border = element_blank())
+
+p2
+```
+
+
+### 2010/2015
+
+```{r,echo=FALSE}
+
+eurData <- Elections15
+
+eurData <- eurData %>% mutate(`Populist index`= `Populist index`)
+# merge map and data
+eurMapDataDf <- merge(eurMapDf, eurData, by.x="id", by.y="CountryCode")
+# sort, so that polygons are drawn correctly
+eurMapDataDf <- eurMapDataDf[order(eurMapDataDf$order),]
+
+# limit data to main Europe
+eurMapDataDf <- subset(eurMapDataDf, long > -15 & long < 32 & lat > 34 & lat < 75)
+
+# add text; instead of mean I do middle (not to be to biased towards detailed coastlines)
+middle = function (x) {
+  (max(x) + min(x)) / 2
+}  
+
+
+txtVal <- summaryBy(long + lat + `Populist index` ~ id, data=eurMapDataDf, FUN=middle, keep.names=T)
+
+# inverse order (to have visible borders)
+
+p3 <-   ggplot(data=eurMapDataDf) +
+  geom_polygon(aes(x=long, y=lat, group=group, fill=`Populist index`)) +
+  geom_path(aes(x=long, y=lat, group=group), color='black', alpha=.5) +
+  geom_text(aes(x=long, y=lat, label=sprintf("%.4f", `Populist index`)), data=txtVal, col="black",cex=3,fontface =2) +
+  scale_fill_gradient2(low = "navy", mid = "white", high = "red4") +
+  coord_equal()+ theme_bw()+ theme(axis.line=element_blank(),axis.text.x=element_blank(),
+                       axis.text.y=element_blank(),axis.ticks=element_blank(),
+                       axis.title.x=element_blank(),
+                       axis.title.y=element_blank(),panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+            plot.background = element_blank(),
+        panel.border = element_blank())
 
 p3
 ```
 
+### 2015/2018
 
+```{r,echo=FALSE}
+
+
+#ELECTIONS from 2015 to 2018
+
+eurData <- Elections20
+
+eurData <- eurData %>% mutate(`Populist index`= `Populist index`)
+# merge map and data
+eurMapDataDf <- merge(eurMapDf, eurData, by.x="id", by.y="CountryCode")
+# sort, so that polygons are drawn correctly
+eurMapDataDf <- eurMapDataDf[order(eurMapDataDf$order),]
+
+# limit data to main Europe
+eurMapDataDf <- subset(eurMapDataDf, long > -15 & long < 32 & lat > 34 & lat < 75)
+
+# add text; instead of mean I do middle (not to be to biased towards detailed coastlines)
+middle = function (x) {
+  (max(x) + min(x)) / 2
+}  
+
+
+txtVal <- summaryBy(long + lat + `Populist index` ~ id, data=eurMapDataDf, FUN=middle, keep.names=T)
+
+# inverse order (to have visible borders)
+p4 <-  ggplot(data=eurMapDataDf) +
+  geom_polygon(aes(x=long, y=lat, group=group, fill=`Populist index`)) +
+  geom_path(aes(x=long, y=lat, group=group), color='black', alpha=.5) +
+  geom_text(aes(x=long, y=lat, label=sprintf("%.4f", `Populist index`)), data=txtVal, col="black",cex=3,fontface =2) +
+  scale_fill_gradient2(low = "navy", mid = "white", high = "red4") +
+  coord_equal()+ theme_bw()+ theme(axis.line=element_blank(),axis.text.x=element_blank(),
+                       axis.text.y=element_blank(),axis.ticks=element_blank(),
+                       axis.title.x=element_blank(),
+                       axis.title.y=element_blank(),panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+            plot.background = element_blank(),
+        panel.border = element_blank())
+p4
+
+```
+
+## \n
+
+
+It is very interesting to see the change that occured over the years in each country. As a general trend, it is very clear that during the last two/three years, even countries that had a negative index (showing a left-wing leaning government), have had an increasing in votes for parties that held from right-wing to populist ideas. 
+
+In the plot below, we can easily see how almost every populist European party has had a rising level of consents during the latest elections.
+
+```{r,echo=FALSE}
+
+#LET'S SEE IF THERE'S BEEN AN INCREASING IN THE VOTES OF RIGHT WING POPULISMS
+#IN THE MAJOR EUROPEAN POPULIST PARTIES  
+
+populisms <- Elections1 %>% filter(Weights >= 1.7) %>%
+            group_by(Country, Year)
+
+#Freedom Party of Austria
+
+austria_party <- c("Freedom Party of Austria","FP.","Freedom Party of AustriaÊ(FP…)")
+#does not recognize Freedom Party of AustriaÊ(FP…)
+
+FP <- populisms %>% filter(Party %in% austria_party) 
+
+FP1 <- populisms %>% filter(Country == "AT") %>% filter(Year == 2017)
+
+FP <- rbind(FP,FP1)
+
+#Northern League in Italy
+
+league <- c("LEGA LOMBARDA - Northern (Lombardy) League (Lega Nord per l'Indipendenza della Padania)",
+            "LN - North League (Lega Nord)","LN - Northern League (Lega Nord)","LN","League")
+League <- populisms %>% filter(Party %in% league) 
+
+
+#FN in France
+
+FN <- populisms %>% filter(Party == "FN")
+
+#FIDESZ in Hungary
+
+hungary_party <- c("FIDESZ","Fidesz Ð Hungarian Civic Union(Fidesz)", "FideszÊÐÊChristian Democratic People's Party")
+FIDESZ <- populisms %>% filter(Party %in% hungary_party)
+
+#UKIP
+
+uk_party <- c("UKIP","UK Independence Party","UK Independence")
+UKIP <- populisms %>% filter(Party %in% uk_party)
+
+
+ts <- ggplot() + 
+  geom_line(data = FP, aes(x =Year , y = Votes,color = "FP Austria") ,size =1) +
+  geom_line(data = League, aes(x =Year , y = Votes,color ="League Italy"),size =1) +
+  geom_line(data = FN, aes(x =Year , y = Votes, color = "FN France"),size =1) +
+  geom_line(data = FIDESZ, aes(x =Year , y = Votes, color = "FIDESZ Hungary"),size =1) +
+  geom_line(data = UKIP, aes(x =Year , y = Votes, color = "UKIP"),size =1) +
+  labs(color="Legend text")+
+  geom_vline(xintercept = 2016.5,linetype = 2)+
+  geom_text(aes(x=2016.5, y=20,label="Brexit"), colour="dark red", angle=90, vjust = 1.2)
+
+ts
+
+```
+ The only party who witnessed a major decline in the last years is UKIP, an English populist party. This decline hoewever, may have been due to the complicated scenario English politcs is going through right now, trying to figure out the Brexit problem.
+
+##A new way to reach people:
+###The populist surge and social media
+
+After analyzing the magnitude of this growth, we now try to outline a common ground shared by every of these parties. One of the main characterstics that says a lot about the core of their politcs, is about the way they communicate. Social media has become a new means to convey political ideas and to reach people as it is easy, fast and poor in words.
+
+Dwellin on this aspect, we've analyzed the facebook feed of Matteo Salvini, the representative of "La Lega", a party that received the 17.8 % of the votes in the latest 2018 italian elections.
+
+
+
+### Matteo Salvini
+
+![](MATTEOSALVINI.jpg)
+
+
+
+The party is more than 20 years old. In the early days, it used to promote the independence of Northern italian regions from the remaining part of the peninsula. With time rolling by, and with the increase possibility for Salvini to run for prime minister, the party aimed to become the "unheard" voice of italian people against immigration and the strict grasp of the European Union.
+
+His facebook page has been one of the main means of propaganda during the last electoral campaign. 
+
+Using Facebook API to retrieve data, we tried to give a grasp of his online influence, by the feed activity registred during the last year.
+
+### {.tabset  .tabset-pills}
+
+
+#### Likes per post
+```{r, echo = FALSE}
+
+
+
+
+ggplot(data = S1, aes(x = date,y =likes_count)) + 
+   geom_line(colour ="lightblue2", size = 3,alpha = 0.7)+
+   geom_point(colour = "dodgerblue4")+ 
+   geom_vline(aes(xintercept=as.numeric(dates)
+   ), color="red", size = 1.5, alpha = 0.2)+
+   geom_text( aes(x=dates, y=150000, label="Elections day"), colour="dark red", angle=90, vjust = 1.2
+             ) + ylab("Likes") +xlab("Date")
+
+```
+
+In the above plot, we distributed its posts according to the date they were posted and the number of likes they got. We can see that, even if their number of likes doesn't usually exceeds 20000, in the days closest to the elections, the number of likes and hence his visibility rose dramatically. That gives us an intuition on how social media use is highly implicated in this new form of politics. 
+
+
+
+#### Monthly average 
+```{r, echo = FALSE}
+Salvini <- read.csv2("Salvini_feed.csv")
+ 
+
+## aggregate metric counts over month
+aggregate.metric <- function(metric) {
+  m <- aggregate(Salvini[[paste0(metric, "_count")]], list(month = Salvini$month), 
+                 mean)
+  m$month <- as.Date(paste0(m$month, "-15"))
+  m$metric <- metric
+  return(m)
+}
+
+# create data frame with average metric counts per month
+
+df.list <- lapply(c("likes", "comments", "shares"), aggregate.metric)
+df <- do.call(rbind, df.list)
+
+# visualize evolution in metric
+
+ggplot(df, aes(x = month, y = x, group = metric)) + geom_line(aes(color = metric), size = 2) + 
+  scale_x_date(date_breaks = "years", labels = date_format("%Y")) + scale_y_log10("Average count per post", 
+                                                                                  breaks = c(10, 100, 1000, 10000, 50000)) + theme_bw() + theme(axis.title.x = element_blank())
+
+
+
+```
+
+
+Here above, we show the monthly average count of likes, shares and comments per post.
+
+#\n
+
+In order to better define the correlation between the approaching of elections and the rising number of likes, we conducted a simple statistical analysis. Specifically, we studied two variables:
+
+
+* X = Number of days from the election day (March 4 2018)
+* Y = Number of likes for the most liked post of the day.
+
+Many posts are posted everyday. However, not all of them have the same popularity due to different factors (some of them may be about very specific etc...). For this reason, we decided to conduct our analysis pairing every day of the studies with the post that had the greatest number of likes in that day. 
+
+```{r, echo = FALSE}
+election_day <- dates
+S2 <- S1 %>% mutate(from_el = abs(difftime(date, election_day, units = "days")))
+
+S2 <- S2 %>% filter(from_el < 100) %>%group_by(from_el) %>% summarize(max(likes_count))
+
+
+S2 <- as.data.frame(S2)
+S2$from_el <- as.numeric(S2$from_el)
+ggplot(data = S2, aes(x = from_el, y= `max(likes_count)` )) + geom_point(color ="dodgerblue4") + 
+  geom_line(stat="smooth",method = "lm",
+            size = 2,
+            color = "red3",
+            alpha = 0.6)+
+  xlab("Days from election") +
+  ylab("Likes")
+
+
+linearMod <- lm(S2$from_el ~ `max(likes_count)`, data=S2)
+
+```
+
+
+#\n
+
+```{r tabsets1, echo=FALSE} 
+dt <- data.frame("Rsquare"= summary(linearMod)$r.squared
+, "Pvalue" =pf(summary(linearMod)$fstatistic[1], summary(linearMod)$fstatistic[2],
+   summary(linearMod)$fstatistic[3], lower.tail = FALSE))
+
+kable(dt, "html") %>%
+  kable_styling(bootstrap_options = "striped", font_size = 20,full_width = F) %>%
+   column_spec(1:2, bold = T) %>%
+  row_spec(1, bold = T, color = "white", background = "#FA725B")
+
+```
+
+
+The R-squared coefficient is not very high, but still prooves the presence of a correlation between the two variables. The p-value is very small, so the Y variable explains succesfully the X variable.
+
+#\n
+
+
+##Qualitative analysis on the topics they bring about
+
+It's interesting to see that the topics they talk about are often related to problems that can be simply stereotyped. Utilizing Salvini's feed, we carried out a text analysis in order to understand which words were used the most.
+
+
+```{r , echo=FALSE} 
+
+
+wordcloud(words = count$value, freq = count$n, min.freq = 20,
+          max.words=200, random.order=FALSE,use.r.layout=FALSE,
+          colors=c("firebrick","firebrick3","firebrick4","darkred"))
+
+
+
+```
+
+Some of the most recurrent words are:
+```{r tabsets3, echo=FALSE} 
+dt <- data.frame("Italian"= c("profughi","primagliitaliani","andiamoagovernare")
+, "English" =c("immigrants","italiansfirst","letsgorule"),
+"italian"= c("4marzovotolega","stopinvasione","facciamosquadra")
+, "english" =c("I'mvotingLegaonMarch 4th","stopinvasion","let'ssticktogether"))
+
+kable(dt, "html") %>%
+  kable_styling(bootstrap_options = "striped", font_size = 12,full_width = F) %>%
+   column_spec(1:4, bold = T) %>%
+  row_spec(1:3, bold = F, color = "white", background = "#FA725B")
+
+```
+
+
+As the analysis shows, one of the most used words, (in this case an hashtag), is "Prima gli Italiani" that translates with "Italians First". This motto is a typical trait of a populistic party, as a way through which they want to lay claim to their superiority on others.
+
+
+These parties followers, in fact, are often the ones that tend to blame everything that comes from the outside whenever there is something that does not work on the inside. This behaviour has been very popular in Europe in the last few years. A clear example is in the deceptive perception towards the immigration problem or the blame of the economic regression to the European Union.
+
+Populistic parties have been using these problem to gain consents.They have been able to do so because in the last few years people have started developing, fed mainly by stereotypes and generalizations, a xenophic behaviour, probably also due to the last economic recession and to the fact that Europe is losing ground in terms of political and economic influence, if compared to another countries of the world.
+
+### {.tabset  .tabset-pills}
+
+
+#### Number of expected immigrants per 100 people
+```{r, echo = FALSE}
+
+
+
+
+ immigrants_n <- read.csv("immigrants_perception_numbers.csv", sep = ";")
+  immigrants_n <- immigrants_n %>% select(Code,X..of.valid) %>% rename("Value"= X..of.valid)
+  
+  immigrants_p <- immigrants_n %>% mutate(Value = Value * 10)
+  
+  
+  f <- function(a,b){
+    vector1 = 0
+    for(i in 1:length(a)){
+      
+      vector = rep(a[i], b[i])
+      
+      
+      vector1 = c(vector,vector1)
+      
+      
+    }
+    
+    return(vector1)
+    
+    
+    
+    
+  }
+  
+  
+  immigrants_p <- f(immigrants_p$Code, immigrants_p$Value)
+  
+  immigrants_p <- as.data.frame(immigrants_p)
+  
+  ggplot(immigrants_p, aes(x = immigrants_p)) + geom_histogram(bins = 10,fill = "orangered4") +
+  xlab("Number of expected immigrants per 100 people") + ylab("Count of people that partecipated in the survey \n (Out of 1000)")
+  
+  
+
+```
+
+
+#### Perceptions on immigrants and crime 
+```{r, echo = FALSE}
+ 
+  immigrants3 <- read.csv("immigrants_analysis_3.csv", sep = ";")
+  immigrants3 <- immigrants3 %>% mutate(Values = Code)
+  immigrants3$Code <- as.factor(immigrants3$Code)
+  
+  ggplot(immigrants3, aes(x = Code, y=`X..of.valid`,fill = Values ))+
+    geom_bar(stat = "identity") + xlab("Values of the survey") +
+    ylab("Votes") + scale_fill_gradient2(low="red4",mid = "lightsteelblue2", high="navy", 
+                                         midpoint=5) +
+    ggtitle("Survey on whether immigrants make crime problems worse or better") +
+    scale_x_discrete(labels=c("0" = "Make it worse \n 0", "1" = "",
+                              "2" = "", "3" = "","4" = "","5" = "5","6" = "",
+                              "7" = "","8" = "","9" = "","10" = "Make it better \n 10"))
+
+  
+
+```
+
+
+#### Perceptions on immigrants and jobs 
+```{r, echo = FALSE}
+  immigrants <- read.csv("immigrants_analysis_1.csv", sep = ";")
+  immigrants <- immigrants %>% filter(Code < 11) %>% mutate(Values = Code)
+  immigrants$Code <- as.factor(immigrants$Code)
+  
+  ggplot(immigrants, aes(x = Code, y=`X..of.valid`,fill = Values ))+
+    geom_bar(stat = "identity") + xlab("Values of the survey") +
+    ylab("Votes") + scale_fill_gradient2(low="red4",mid = "lightsteelblue2", high="navy", 
+                                        midpoint=5) +
+    ggtitle("Survey on the relationship between immigrants and jobs") +
+    scale_x_discrete(labels=c("0" = "Take jobs aways \n 0", "1" = "",
+                              "2" = "", "3" = "","4" = "","5" = "5","6" = "",
+                              "7" = "","8" = "","9" = "","10" = "Create new jobs \n 10"))
+  
+
+```
+
+#\n
+
+The plots above display data collected in the 2017 amongst different European countries. From the first plot, we see how many people think that immigrants (non-citizens) represent the 10-15 percent of the population. However, they are, in reality, just about the 4.2% of the whole Europe population.
+
+```{r, echo = FALSE}
+imm <- data.frame( Type = c("Non-citizens", "citizens"),
+                   Value = c(4.2,93.8))
+  
+
+ggplot(imm, aes(x = 1, y = Value, fill = Type))+ geom_bar(stat = "identity") +
+  coord_polar(theta = "y") + theme(axis.line=element_blank(),
+                                             axis.text.y=element_blank(),
+                                             axis.title.x=element_blank(),
+                                             axis.title.y=element_blank()) +
+  scale_fill_manual(values=c("lightskyblue","orangered4"))
+
+
+```
+
+
+## Conclusions
+
+In the end, we've been able to see how these parties have been able to manipulate people's discontent and to alter reality making things much more simple than they are. Probably, they have been able to thrive so much because politics itself, in order to be understood, requires a kind of knowledge not everyone has. Democracy, after all, is a means that ensures people get nothing better than they deserve.
 

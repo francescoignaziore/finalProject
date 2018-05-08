@@ -13,6 +13,7 @@ library(doBy)
 library(gpclib)
 gpclibPermit()
 
+#We retrieved every year election's data from http://www.nsd.uib.no/european_election_database/
 France <- read.csv("France1.csv",sep = ";" )
 Germany <- read.csv("Germany.csv",sep = ";" )
 Hungary <- read.csv("Hungary.csv",sep = ";" )
@@ -30,11 +31,9 @@ Uk4 <- read.csv("uk2005.csv",sep = ";" )
 Uk5 <- read.csv("uk2010.csv",sep = ";" )
 austria <- read.csv("austria.csv", sep = ";")
 
-#Let's tidy up the data
+#Let's tidy up the data and bind together the elections by country
 
 #France
-
-View(France1)
 
 France1 <- France %>% filter(France$X != "Year") %>%
    select(-c(`Electorate`,`Votes`,`Valid.votes`,`Invalid.votes`)) %>%
@@ -70,8 +69,7 @@ France_el <- rbind(France_07,France1217)
 France_el <- France_el %>% filter(Votes != is.na(TRUE)) %>%
             rename("Party" = Parties, "Weights"=weight, "Country" = country)
   
-View(France_el)
-  
+
 
 #Germany
 
@@ -104,10 +102,7 @@ Germany_el <- rbind(Germany09,Germany1317)
 
 
 
-View(Germany09)
 #Hungary
-
-View(Hungary1)
 
 Hungary1 <- Hungary %>% filter(Hungary$X != "Year") %>%
   select(-c(`Elect..Total`,`Votes`,`Valid.votes`,`Invalid.votes`)) %>%
@@ -134,12 +129,10 @@ Hungary1418 <- read.csv("Hungary_1418.csv", sep=";")
 Hungary10$Year <- as.numeric(as.character(Hungary10$Year))
 
 Hungary_el <- rbind(Hungary10, Hungary1418)
-View(Hungary_el)
 
 
 #Italy
 
-View(italy6)
 
 italy1 <- Italy1 %>% select(`Party.List`,`Votes..`) %>%
           mutate(Year = "1992")
@@ -198,8 +191,6 @@ partyI <- read.csv("Italy_parties_toread.csv", sep = ";")
 
 partyI <- partyI %>% select(-Column1)
 
-View(Italy)
-View(partyI)
 Italy13 <- inner_join(Italy, partyI) 
 
 Italy13 <- Italy13 %>% filter(Party.List != "Valid.votes") %>%
@@ -215,7 +206,6 @@ Italy18 <- read.csv("Italy2018.csv", sep = ";")
 
 Italy_el <- rbind(Italy13,Italy18)
 
-View(Italy_el)
 
 #UK
 
@@ -250,8 +240,6 @@ UK <- rbind(uk1,uk2,uk3,uk4,uk5)
 UK <- UK %>% filter(UK$party != "Electorate")
 
 
-
-
 #Uk_tosave <- UK %>% group_by(party) %>% summarize(mean(Result))
 
 #write.csv(Uk_tosave, "Uk_parties.csv")
@@ -278,8 +266,6 @@ UK_el <- rbind(UK10,UK1517)
 
 
 #austria
-
-View(Austria)
 
 Austria <- austria %>% select(-`Electorate`,-`Votes`,-`Valid.votes`,-`Invalid.votes`) %>%
   gather(-`Year`,key="party", value = "Result")
@@ -308,6 +294,9 @@ Austria08 <- Austria08 %>% rename("Party" = party, "Votes"=Result, "Weights"=wei
 Austria_el <- rbind(Austria08,Austria1317)
 
 
+#We bind all the elections in one big dataset 
+
+
 Elections <- rbind(Austria_el,Italy_el,Germany_el,UK_el,Hungary_el,France_el)
 
 Elections$Votes <- as.numeric(Elections$Votes)
@@ -324,6 +313,7 @@ Elections_mean <- Elections %>% select(Country,Year,Index) %>%
                         group_by(Country) %>% 
                         summarise(mean(Index))
 
+#We prepare the map
 
 codes <- read.csv("iso_code_europe_partial.csv", sep= ";")
 
@@ -345,9 +335,8 @@ Elections_mean <- Elections_mean %>% rename("CountryCode" = Country, "Populist i
 
 #write.csv(Elections_mean, "Overview_Elections.csv")
 
-eurData <- Elections_mean
-#eurData <- read.csv("Overview_Elections.csv")
-#eurData <- eurData %>% rename("Populist index" = Populist.index ) %>% select(-X)
+eurData <- read.csv("Overview_Elections.csv")
+eurData <- eurData %>% rename("Populist index" = Populist.index) %>% select(-X)
 #eurData <- rbind(eurData,codes)
 eurData <- eurData %>% mutate(`Populist index`= `Populist index` * 10)
 # merge map and data
@@ -371,28 +360,37 @@ txtVal <- summaryBy(long + lat + `Populist index` ~ id, data=eurMapDataDf, FUN=m
 p <- ggplot(data=eurMapDataDf) +
   geom_polygon(aes(x=long, y=lat, group=group, fill=`Populist index`)) +
   geom_path(aes(x=long, y=lat, group=group), color='black', alpha=.5) +
-  geom_text(aes(x=long, y=lat, label=sprintf("%.2f", `Populist index`)), data=txtVal, col="gray50",cex=3) +
+  geom_text(aes(x=long, y=lat, label=sprintf("%.4f", `Populist index`)), data=txtVal, col="black",cex=3,fontface =2) +
   scale_fill_gradient2(low = "navy", mid = "white", high = "red4") +
-  coord_equal()
+  coord_equal()+ theme(axis.line=element_blank(),axis.text.x=element_blank(),
+                         axis.text.y=element_blank(),axis.ticks=element_blank(),
+                         axis.title.x=element_blank(),
+                         axis.title.y=element_blank())+
+  geom_text(x =12 , y =60.5, label = "General trend of elections from 1992 to present")
 p
 
 Elections %>% group_by(Year,Country) %>% summarize(mean(Index))
 
 Elections$Year <- as.numeric(Elections$Year)
 
-Elections00 <- Elections %>%filter(Year >= 1990)%>%filter(Year <2000) %>%
+#write.csv(Elections, "Elections.csv")
+
+Elections1 <- read.csv("Elections.csv", sep = ",")
+Elections1 <- Elections1 %>% select(-X)
+
+Elections00 <- Elections1 %>%filter(Year >= 1990)%>%filter(Year <2000) %>%
               group_by(Country) %>% summarize(mean(Index)) %>%
   rename("CountryCode" = Country, "Populist index"= `mean(Index)`)
               
-Elections10 <- Elections %>%filter(Year >= 2000)%>%filter(Year <2010) %>%
+Elections10 <- Elections1 %>%filter(Year >= 2000)%>%filter(Year <2010) %>%
   group_by(Country) %>% summarize(mean(Index))  %>%
   rename("CountryCode" = Country, "Populist index"= `mean(Index)`)
 
-Elections15 <- Elections %>%filter(Year >= 2010)%>%filter(Year <2015) %>%
+Elections15 <- Elections1 %>%filter(Year >= 2010)%>%filter(Year <2015) %>%
   group_by(Country) %>% summarize(mean(Index)) %>%
   rename("CountryCode" = Country, "Populist index"= `mean(Index)`)
 
-Elections20 <-  Elections %>%filter(Year >= 2015)%>%filter(Year <=2018)%>%
+Elections20 <-  Elections1 %>%filter(Year >= 2015)%>%filter(Year <=2018)%>%
   group_by(Country) %>% summarize(mean(Index)) %>%
   rename("CountryCode" = Country, "Populist index"= `mean(Index)`)
 
@@ -419,19 +417,22 @@ txtVal <- summaryBy(long + lat + `Populist index` ~ id, data=eurMapDataDf, FUN=m
 
 # inverse order (to have visible borders)
 
-p1 <- ggplot(data=eurMapDataDf) +
+p1 <-  ggplot(data=eurMapDataDf) +
   geom_polygon(aes(x=long, y=lat, group=group, fill=`Populist index`)) +
   geom_path(aes(x=long, y=lat, group=group), color='black', alpha=.5) +
-  geom_text(aes(x=long, y=lat, label=sprintf("%.2f", `Populist index`)), data=txtVal, col="gray50",cex=3) +
+  geom_text(aes(x=long, y=lat, label=sprintf("%.4f", `Populist index`)), data=txtVal, col="black",cex=3,fontface =2) +
   scale_fill_gradient2(low = "navy", mid = "white", high = "red4") +
-  coord_equal()
+  coord_equal()+ theme(axis.line=element_blank(),axis.text.x=element_blank(),
+                       axis.text.y=element_blank(),axis.ticks=element_blank(),
+                       axis.title.x=element_blank(),
+                       axis.title.y=element_blank())
 
 p1
 #ELECTIONS from 2000 to 2010
 
 eurData <- Elections10
 
-eurData <- eurData %>% mutate(`Populist index`= `Populist index` * 10)
+eurData <- eurData %>% mutate(`Populist index`= `Populist index`)
 # merge map and data
 eurMapDataDf <- merge(eurMapDf, eurData, by.x="id", by.y="CountryCode")
 # sort, so that polygons are drawn correctly
@@ -450,19 +451,22 @@ txtVal <- summaryBy(long + lat + `Populist index` ~ id, data=eurMapDataDf, FUN=m
 
 # inverse order (to have visible borders)
 
-p2 <- ggplot(data=eurMapDataDf) +
+p2 <-  ggplot(data=eurMapDataDf) +
   geom_polygon(aes(x=long, y=lat, group=group, fill=`Populist index`)) +
   geom_path(aes(x=long, y=lat, group=group), color='black', alpha=.5) +
-  geom_text(aes(x=long, y=lat, label=sprintf("%.2f", `Populist index`)), data=txtVal, col="gray50",cex=3) +
+  geom_text(aes(x=long, y=lat, label=sprintf("%.4f", `Populist index`)), data=txtVal, col="black",cex=3,fontface =2) +
   scale_fill_gradient2(low = "navy", mid = "white", high = "red4") +
-  coord_equal()
+  coord_equal()+ theme(axis.line=element_blank(),axis.text.x=element_blank(),
+                       axis.text.y=element_blank(),axis.ticks=element_blank(),
+                       axis.title.x=element_blank(),
+                       axis.title.y=element_blank())
 
 p2
 #ELECTIONS from 2010 to 2015
 
 eurData <- Elections15
 
-eurData <- eurData %>% mutate(`Populist index`= `Populist index` * 10)
+eurData <- eurData %>% mutate(`Populist index`= `Populist index`)
 # merge map and data
 eurMapDataDf <- merge(eurMapDf, eurData, by.x="id", by.y="CountryCode")
 # sort, so that polygons are drawn correctly
@@ -481,19 +485,22 @@ txtVal <- summaryBy(long + lat + `Populist index` ~ id, data=eurMapDataDf, FUN=m
 
 # inverse order (to have visible borders)
 
-p3 <- ggplot(data=eurMapDataDf) +
+p3 <-  ggplot(data=eurMapDataDf) +
   geom_polygon(aes(x=long, y=lat, group=group, fill=`Populist index`)) +
   geom_path(aes(x=long, y=lat, group=group), color='black', alpha=.5) +
-  geom_text(aes(x=long, y=lat, label=sprintf("%.f", `Populist index`)), data=txtVal, col="gray50",cex=3) +
+  geom_text(aes(x=long, y=lat, label=sprintf("%.4f", `Populist index`)), data=txtVal, col="black",cex=3,fontface =2) +
   scale_fill_gradient2(low = "navy", mid = "white", high = "red4") +
-  coord_equal()
+  coord_equal()+ theme(axis.line=element_blank(),axis.text.x=element_blank(),
+                       axis.text.y=element_blank(),axis.ticks=element_blank(),
+                       axis.title.x=element_blank(),
+                       axis.title.y=element_blank())
 
 p3
 #ELECTIONS from 2015 to 2018
 
 eurData <- Elections20
 
-eurData <- eurData %>% mutate(`Populist index`= `Populist index` * 10)
+eurData <- eurData %>% mutate(`Populist index`= `Populist index` )
 # merge map and data
 eurMapDataDf <- merge(eurMapDf, eurData, by.x="id", by.y="CountryCode")
 # sort, so that polygons are drawn correctly
@@ -511,12 +518,15 @@ middle = function (x) {
 txtVal <- summaryBy(long + lat + `Populist index` ~ id, data=eurMapDataDf, FUN=middle, keep.names=T)
 
 # inverse order (to have visible borders)
-p4 <- ggplot(data=eurMapDataDf) +
+p4 <-  ggplot(data=eurMapDataDf) +
   geom_polygon(aes(x=long, y=lat, group=group, fill=`Populist index`)) +
   geom_path(aes(x=long, y=lat, group=group), color='black', alpha=.5) +
-  geom_text(aes(x=long, y=lat, label=sprintf("%.2f", `Populist index`)), data=txtVal, col="gray50",cex=3) +
+  geom_text(aes(x=long, y=lat, label=sprintf("%.4f", `Populist index`)), data=txtVal, col="black",cex=3,fontface =2) +
   scale_fill_gradient2(low = "navy", mid = "white", high = "red4") +
-  coord_equal()
+  coord_equal()+ theme(axis.line=element_blank(),axis.text.x=element_blank(),
+                       axis.text.y=element_blank(),axis.ticks=element_blank(),
+                       axis.title.x=element_blank(),
+                       axis.title.y=element_blank())
 p4
 
 #LET'S SEE IF THERE'S BEEN AN INCREASING IN THE VOTES OF RIGHT WING POPULISMS
@@ -542,7 +552,6 @@ league <- c("LEGA LOMBARDA - Northern (Lombardy) League (Lega Nord per l'Indipen
             "LN - North League (Lega Nord)","LN - Northern League (Lega Nord)","LN","League")
 League <- populisms %>% filter(Party %in% league) 
 
-View(populisms)
 
 #FN in France
 
@@ -568,5 +577,24 @@ ggplot() +
   labs(color="Legend text")+
   geom_vline(xintercept = 2015.5,linetype = 2)+
   geom_text(aes(x=2015.5, y=20,label="Brexit"), colour="dark red", angle=90, vjust = 1.2)
-  
 
+
+
+
+
+Elections00 <- Elections00 %>% mutate( "1990/2000" = `Populist index`) %>% select(-`Populist index`)
+Elections10 <- Elections10 %>% mutate("2000/2010"= `Populist index`) %>% select("2000/2010")
+Elections15 <- Elections15 %>% mutate("2010/2015"= `Populist index`) %>% select("2010/2015")
+Elections20 <- Elections20 %>% mutate("2015/2018"= `Populist index`) %>% select("2015/2018")
+
+change <- cbind(Elections00,Elections10,Elections15,Elections20)
+
+#overall change
+
+change <- change %>% mutate(change1 = -`1990/2000`+ `2000/2010`,
+                            change2 =-`2000/2010`+ `2010/2015`,
+                            change3 =-`2010/2015`+`2015/2018`  )%>%
+                    select(CountryCode, change1, change2, change3) %>%
+                    gather(change1,change2,change3, key = "Type_Change", value = "value")
+
+ggplot(change, aes(x = CountryCode, y=value, group = Type_Change,fill = CountryCode)) + geom_col(position = "dodge")
